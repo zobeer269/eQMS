@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }} - {{ block.super }}{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'documents:list' %}">{% trans "Documents" %}</a></li>
+{% if document %}
+<li class="breadcrumb-item"><a href="{% url 'documents:detail' document.pk %}">{{ document.document_id }}</a></li>
+{% endif %}
+<li class="breadcrumb-item active">{{ title }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="document-form">
+                    {% csrf_token %}
+                    
+                    <!-- معلومات أساسية -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-info-circle"></i> {% trans "Basic Information" %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    {{ form.document_id|as_crispy_field }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ form.document_type|as_crispy_field }}
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    {{ form.title|as_crispy_field }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ form.title_en|as_crispy_field }}
+                                </div>
+                            </div>
+                            
+                            {{ form.description|as_crispy_field }}
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    {{ form.category|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4">
+                                    {{ form.owner|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4">
+                                    {{ form.language|as_crispy_field }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- الملف والتواريخ -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-file"></i> {% trans "File and Dates" %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if not document %}
+                            {{ form.file|as_crispy_field }}
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                {% trans "Current file" %}: 
+                                <a href="{% url 'documents:download' document.pk %}">
+                                    {{ document.file.name|slice:"10:" }}
+                                </a>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    {{ form.effective_date|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4">
+                                    {{ form.review_date|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4">
+                                    {{ form.expiry_date|as_crispy_field }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- إعدادات إضافية -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-cog"></i> {% trans "Additional Settings" %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {{ form.keywords|as_crispy_field }}
+                            
+                            <div class="form-check mb-3">
+                                {{ form.requires_training }}
+                                <label class="form-check-label" for="{{ form.requires_training.id_for_label }}">
+                                    {{ form.requires_training.label }}
+                                </label>
+                                <small class="form-text text-muted d-block">
+                                    {% trans "Check if users must acknowledge reading this document" %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- أزرار الإجراءات -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{% if document %}{% url 'documents:detail' document.pk %}{% else %}{% url 'documents:list' %}{% endif %}" 
+                           class="btn btn-secondary">
+                            <i class="fas fa-times"></i> {% trans "Cancel" %}
+                        </a>
+                        <div>
+                            <button type="submit" class="btn btn-primary" name="save">
+                                <i class="fas fa-save"></i> {{ submit_text|default:_("Save") }}
+                            </button>
+                            {% if not document %}
+                            <button type="submit" class="btn btn-success" name="send_for_review" value="1">
+                                <i class="fas fa-paper-plane"></i> {% trans "Save and Send for Review" %}
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// توليد معرف الوثيقة تلقائياً
+document.getElementById('id_document_type').addEventListener('change', function() {
+    const docType = this.value.toUpperCase();
+    const category = document.getElementById('id_category');
+    
+    if (category.value) {
+        const categoryCode = category.options[category.selectedIndex].text.split(' - ')[0];
+        
+        // إذا كان حقل معرف الوثيقة فارغاً أو يحتوي على معرف مولد
+        const docIdField = document.getElementById('id_document_id');
+        if (!docIdField.value || docIdField.value.match(/^[A-Z]+-[A-Z]+-\d{3}$/)) {
+            // اقتراح معرف جديد
+            fetch(`/documents/create/?type=${docType}&category=${categoryCode}`, {
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.suggested_id) {
+                    docIdField.value = data.suggested_id;
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    }
+});
+
+// التحقق من الملف
+document.getElementById('id_file').addEventListener('change', function() {
+    const file = this.files[0];
+    if (file) {
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            alert('{% trans "File size cannot exceed 10 MB" %}');
+            this.value = '';
+            return;
+        }
+        
+        const allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx'];
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!allowedTypes.includes(ext)) {
+            alert('{% trans "File type not allowed" %}');
+            this.value = '';
+            return;
+        }
+    }
+});
+
+// التحقق من التواريخ
+function validateDates() {
+    const effectiveDate = document.getElementById('id_effective_date').value;
+    const reviewDate = document.getElementById('id_review_date').value;
+    const expiryDate = document.getElementById('id_expiry_date').value;
+    
+    if (effectiveDate && reviewDate) {
+        if (reviewDate <= effectiveDate) {
+            alert('{% trans "Review date must be after effective date" %}');
+            return false;
+        }
+    }
+    
+    if (effectiveDate && expiryDate) {
+        if (expiryDate <= effectiveDate) {
+            alert('{% trans "Expiry date must be after effective date" %}');
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// التحقق عند الإرسال
+document.getElementById('document-form').addEventListener('submit', function(e) {
+    if (!validateDates()) {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %}

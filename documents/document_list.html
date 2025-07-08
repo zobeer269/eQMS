@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Documents" %} - {{ block.super }}{% endblock %}
+
+{% block page_title %}{% trans "Document Management" %}{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'documents:create' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> {% trans "New Document" %}
+</a>
+<a href="{% url 'documents:my_documents' %}" class="btn btn-outline-primary">
+    <i class="fas fa-user"></i> {% trans "My Documents" %}
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- إحصائيات -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col">
+                        <h5 class="mb-0">{{ stats.total }}</h5>
+                        <small class="text-muted">{% trans "Total" %}</small>
+                    </div>
+                    <div class="col">
+                        <h5 class="mb-0 text-warning">{{ stats.draft }}</h5>
+                        <small class="text-muted">{% trans "Draft" %}</small>
+                    </div>
+                    <div class="col">
+                        <h5 class="mb-0 text-info">{{ stats.review }}</h5>
+                        <small class="text-muted">{% trans "Under Review" %}</small>
+                    </div>
+                    <div class="col">
+                        <h5 class="mb-0 text-success">{{ stats.approved }}</h5>
+                        <small class="text-muted">{% trans "Approved" %}</small>
+                    </div>
+                    <div class="col">
+                        <h5 class="mb-0 text-primary">{{ stats.published }}</h5>
+                        <small class="text-muted">{% trans "Published" %}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- البحث والفلترة -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" action="">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    {{ form.search }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.document_type }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.category }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.status }}
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> {% trans "Search" %}
+                    </button>
+                </div>
+            </div>
+            
+            <!-- تواريخ البحث -->
+            <div class="row g-3 mt-2">
+                <div class="col-md-3">
+                    <label class="form-label small">{% trans "From Date" %}</label>
+                    {{ form.date_from }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">{% trans "To Date" %}</label>
+                    {{ form.date_to }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small">&nbsp;</label>
+                    <div>
+                        <a href="{% url 'documents:list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-redo"></i> {% trans "Reset" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- قائمة الوثائق -->
+<div class="card">
+    <div class="card-body">
+        <form method="post" action="{% url 'documents:bulk_action' %}" id="documents-form">
+            {% csrf_token %}
+            
+            <!-- أدوات الإجراءات الجماعية -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="d-flex gap-2">
+                        <select name="action" class="form-select" style="width: auto;">
+                            <option value="">{% trans "Bulk Actions" %}</option>
+                            <option value="download">{% trans "Download Selected" %}</option>
+                            <option value="archive">{% trans "Archive Selected" %}</option>
+                            {% if user.is_staff %}
+                            <option value="change_owner">{% trans "Change Owner" %}</option>
+                            {% endif %}
+                        </select>
+                        <button type="submit" class="btn btn-outline-primary" disabled id="bulk-action-btn">
+                            {% trans "Apply" %}
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <span class="text-muted">
+                        {% trans "Showing" %} {{ page_obj.start_index }}-{{ page_obj.end_index }} 
+                        {% trans "of" %} {{ page_obj.paginator.count }}
+                    </span>
+                </div>
+            </div>
+            
+            <!-- جدول الوثائق -->
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th width="40">
+                                <input type="checkbox" class="form-check-input" id="select-all">
+                            </th>
+                            <th>{% trans "Document ID" %}</th>
+                            <th>{% trans "Title" %}</th>
+                            <th>{% trans "Type" %}</th>
+                            <th>{% trans "Category" %}</th>
+                            <th>{% trans "Version" %}</th>
+                            <th>{% trans "Status" %}</th>
+                            <th>{% trans "Author" %}</th>
+                            <th>{% trans "Date" %}</th>
+                            <th width="120">{% trans "Actions" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for document in page_obj %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" name="selected_documents" 
+                                       value="{{ document.pk }}" class="form-check-input doc-checkbox">
+                            </td>
+                            <td>
+                                <a href="{% url 'documents:detail' document.pk %}" class="text-decoration-none">
+                                    <strong>{{ document.document_id }}</strong>
+                                </a>
+                            </td>
+                            <td>
+                                {{ document.title }}
+                                {% if document.requires_training %}
+                                    <i class="fas fa-graduation-cap text-info" 
+                                       data-bs-toggle="tooltip" 
+                                       title="{% trans 'Requires Training' %}"></i>
+                                {% endif %}
+                                {% if document.is_expired %}
+                                    <span class="badge bg-danger">{% trans "Expired" %}</span>
+                                {% endif %}
+                                {% if document.is_due_for_review %}
+                                    <span class="badge bg-warning">{% trans "Review Due" %}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ document.get_document_type_display }}</small>
+                            </td>
+                            <td>
+                                <small>{{ document.category.name }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">v{{ document.version }}</span>
+                            </td>
+                            <td>
+                                {% if document.status == 'draft' %}
+                                    <span class="badge bg-secondary">{{ document.get_status_display }}</span>
+                                {% elif document.status == 'review' %}
+                                    <span class="badge bg-info">{{ document.get_status_display }}</span>
+                                {% elif document.status == 'approved' %}
+                                    <span class="badge bg-success">{{ document.get_status_display }}</span>
+                                {% elif document.status == 'published' %}
+                                    <span class="badge bg-primary">{{ document.get_status_display }}</span>
+                                {% elif document.status == 'rejected' %}
+                                    <span class="badge bg-danger">{{ document.get_status_display }}</span>
+                                {% else %}
+                                    <span class="badge bg-dark">{{ document.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ document.author.get_full_name|default:document.author.username }}</small>
+                            </td>
+                            <td>
+                                <small>{{ document.created_date|date:"Y-m-d" }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'documents:detail' document.pk %}" 
+                                       class="btn btn-outline-primary" 
+                                       data-bs-toggle="tooltip" 
+                                       title="{% trans 'View' %}">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'documents:download' document.pk %}" 
+                                       class="btn btn-outline-success" 
+                                       data-bs-toggle="tooltip" 
+                                       title="{% trans 'Download' %}">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    {% if document.status == 'draft' and document.author == user %}
+                                    <a href="{% url 'documents:edit' document.pk %}" 
+                                       class="btn btn-outline-warning" 
+                                       data-bs-toggle="tooltip" 
+                                       title="{% trans 'Edit' %}">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="10" class="text-center text-muted py-4">
+                                <i class="fas fa-folder-open fa-3x mb-3 d-block"></i>
+                                {% trans "No documents found." %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+        
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                            {% trans "First" %}
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                {{ num }}
+                            </a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                            {% trans "Last" %}
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Select all checkbox
+document.getElementById('select-all').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.doc-checkbox');
+    checkboxes.forEach(cb => cb.checked = this.checked);
+    updateBulkActionButton();
+});
+
+// Update bulk action button state
+function updateBulkActionButton() {
+    const checkedBoxes = document.querySelectorAll('.doc-checkbox:checked');
+    const bulkBtn = document.getElementById('bulk-action-btn');
+    bulkBtn.disabled = checkedBoxes.length === 0;
+}
+
+// Listen to checkbox changes
+document.querySelectorAll('.doc-checkbox').forEach(cb => {
+    cb.addEventListener('change', updateBulkActionButton);
+});
+
+// Initialize tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl)
+});
+</script>
+{% endblock %}

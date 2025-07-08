@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "My Documents" %} - {{ block.super }}{% endblock %}
+
+{% block page_title %}{% trans "My Documents" %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- الوثائق التي أنشأتها -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-pen"></i> {% trans "Documents I Created" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for doc in authored %}
+                    <a href="{% url 'documents:detail' doc.pk %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ doc.document_id }}</strong><br>
+                                <small>{{ doc.title|truncatewords:10 }}</small>
+                            </div>
+                            <div>
+                                {% if doc.status == 'draft' %}
+                                    <span class="badge bg-secondary">{{ doc.get_status_display }}</span>
+                                {% elif doc.status == 'review' %}
+                                    <span class="badge bg-info">{{ doc.get_status_display }}</span>
+                                {% elif doc.status == 'approved' %}
+                                    <span class="badge bg-success">{{ doc.get_status_display }}</span>
+                                {% elif doc.status == 'published' %}
+                                    <span class="badge bg-primary">{{ doc.get_status_display }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <p class="text-muted text-center my-3">{% trans "No documents created yet" %}</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- الوثائق التي أملكها -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-user-tie"></i> {% trans "Documents I Own" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for doc in owned %}
+                    <a href="{% url 'documents:detail' doc.pk %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ doc.document_id }}</strong><br>
+                                <small>{{ doc.title|truncatewords:10 }}</small>
+                            </div>
+                            <div>
+                                {% if doc.is_due_for_review %}
+                                <span class="badge bg-warning">{% trans "Review Due" %}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <p class="text-muted text-center my-3">{% trans "No documents owned" %}</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- الموافقات المعلقة -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock"></i> {% trans "Pending Approvals" %}
+                    <span class="badge bg-dark">{{ pending_approvals.count }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for approval in pending_approvals %}
+                    <a href="{% url 'documents:review' approval.document.pk %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ approval.document.document_id }}</strong><br>
+                                <small>{{ approval.document.title|truncatewords:10 }}</small><br>
+                                <small class="text-muted">
+                                    {% trans "Role" %}: {{ approval.get_approval_role_display }}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                {% if approval.due_date %}
+                                <small class="text-danger">
+                                    {% trans "Due" %}: {{ approval.due_date|date:"Y-m-d" }}
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <p class="text-muted text-center my-3">{% trans "No pending approvals" %}</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- الوثائق التي تحتاج قراءة -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-book-reader"></i> {% trans "Required Reading" %}
+                    <span class="badge bg-dark">{{ unread_documents.count }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for doc in unread_documents %}
+                    <a href="{% url 'documents:detail' doc.pk %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ doc.document_id }}</strong><br>
+                                <small>{{ doc.title|truncatewords:10 }}</small>
+                            </div>
+                            <div>
+                                <span class="badge bg-warning">{% trans "Not Read" %}</span>
+                            </div>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <p class="text-muted text-center my-3">{% trans "No documents require reading" %}</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if unresolved_comments %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-comments"></i> {% trans "Unresolved Comments" %}
+                    <span class="badge bg-dark">{{ unresolved_comments.count }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Document" %}</th>
+                                <th>{% trans "Comment" %}</th>
+                                <th>{% trans "By" %}</th>
+                                <th>{% trans "Date" %}</th>
+                                <th>{% trans "Action" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for comment in unresolved_comments %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'documents:detail' comment.document.pk %}">
+                                        {{ comment.document.document_id }}
+                                    </a>
+                                </td>
+                                <td>{{ comment.comment|truncatewords:20 }}</td>
+                                <td>{{ comment.user.get_full_name|default:comment.user.username }}</td>
+                                <td>{{ comment.created_date|date:"Y-m-d" }}</td>
+                                <td>
+                                    <a href="{% url 'documents:detail' comment.document.pk %}#comment-{{ comment.pk }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        {% trans "View" %}
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Profile" %} - {{ block.super }}{% endblock %}
+
+{% block page_title %}{% trans "My Profile" %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Profile Information -->
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h6 class="m-0 fw-bold text-primary">
+                    <i class="fas fa-user"></i> {% trans "Personal Information" %}
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "Employee ID" %}</label>
+                            <input type="text" class="form-control" value="{{ user.employee_id }}" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "Username" %}</label>
+                            <input type="text" class="form-control" value="{{ user.username }}" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "First Name" %}</label>
+                            <input type="text" name="first_name" class="form-control" value="{{ user.first_name }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "Last Name" %}</label>
+                            <input type="text" name="last_name" class="form-control" value="{{ user.last_name }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "Email" %}</label>
+                            <input type="email" name="email" class="form-control" value="{{ user.email }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "Phone" %}</label>
+                            <input type="text" name="phone" class="form-control" value="{{ user.phone }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "Department" %}</label>
+                            <input type="text" class="form-control" value="{{ user.get_department_display }}" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "Position" %}</label>
+                            <input type="text" class="form-control" value="{{ user.position }}" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "Preferred Language" %}</label>
+                            <select name="preferred_language" class="form-select">
+                                <option value="ar" {% if user.preferred_language == 'ar' %}selected{% endif %}>العربية</option>
+                                <option value="en" {% if user.preferred_language == 'en' %}selected{% endif %}>English</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "Electronic Signature" %}</label>
+                            <input type="file" name="signature_image" class="form-control" accept="image/*">
+                            {% if user.signature_image %}
+                            <small class="text-muted">
+                                {% trans "Current signature on file" %}
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% trans "Save Changes" %}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Account Information -->
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h6 class="m-0 fw-bold text-primary">
+                    <i class="fas fa-info-circle"></i> {% trans "Account Information" %}
+                </h6>
+            </div>
+            <div class="card-body">
+                <p><strong>{% trans "Account Created" %}:</strong><br>{{ user.date_joined|date:"Y-m-d H:i" }}</p>
+                <p><strong>{% trans "Last Login" %}:</strong><br>{{ user.last_login|date:"Y-m-d H:i" }}</p>
+                <p><strong>{% trans "Password Changed" %}:</strong><br>{{ user.password_changed_at|date:"Y-m-d H:i" }}</p>
+                <p><strong>{% trans "Electronic Signature ID" %}:</strong><br><small>{{ user.electronic_signature }}</small></p>
+                
+                <hr>
+                
+                <h6 class="fw-bold">{% trans "Permissions" %}</h6>
+                <ul class="list-unstyled">
+                    {% if user.is_quality_manager %}
+                    <li><i class="fas fa-check text-success"></i> {% trans "Quality Manager" %}</li>
+                    {% endif %}
+                    {% if user.is_document_controller %}
+                    <li><i class="fas fa-check text-success"></i> {% trans "Document Controller" %}</li>
+                    {% endif %}
+                    {% if user.can_approve_documents %}
+                    <li><i class="fas fa-check text-success"></i> {% trans "Can Approve Documents" %}</li>
+                    {% endif %}
+                    {% if user.is_staff %}
+                    <li><i class="fas fa-check text-success"></i> {% trans "Staff Member" %}</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Active Sessions -->
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="m-0 fw-bold text-primary">
+                    <i class="fas fa-desktop"></i> {% trans "Active Sessions" %}
+                </h6>
+            </div>
+            <div class="card-body">
+                {% for session in active_sessions %}
+                <div class="mb-2">
+                    <small>
+                        <strong>{{ session.ip_address }}</strong><br>
+                        {% trans "Since" %}: {{ session.created_at|date:"Y-m-d H:i" }}
+                    </small>
+                </div>
+                {% empty %}
+                <p class="text-muted mb-0">{% trans "No active sessions" %}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activities -->
+<div class="card shadow mt-4">
+    <div class="card-header">
+        <h6 class="m-0 fw-bold text-primary">
+            <i class="fas fa-history"></i> {% trans "Recent Activities" %}
+        </h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>{% trans "Date/Time" %}</th>
+                        <th>{% trans "Action" %}</th>
+                        <th>{% trans "Details" %}</th>
+                        <th>{% trans "IP Address" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for activity in recent_activities %}
+                    <tr>
+                        <td>{{ activity.timestamp|date:"Y-m-d H:i" }}</td>
+                        <td>{{ activity.get_action_display }}</td>
+                        <td>{{ activity.object_repr|default:"-" }}</td>
+                        <td>{{ activity.ip_address }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">
+                            {% trans "No recent activities" %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

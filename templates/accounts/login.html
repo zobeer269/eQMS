@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% trans "Login" %} - {{ block.super }}{% endblock %}
+
+{% block content_full %}
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white text-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-sign-in-alt"></i>
+                        {% trans "Login to eQMS" %}
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    <!-- عرض الأخطاء -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                                <p class="mb-0">{{ error }}</p>
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                            <p class="mb-0">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- رسائل النظام -->
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <form method="post" action="{% url 'accounts:login' %}">
+                        {% csrf_token %}
+                        
+                        <!-- Language Selector -->
+                        <div class="mb-3">
+                            {{ form.language|as_crispy_field }}
+                        </div>
+                        
+                        <!-- Username -->
+                        <div class="mb-3">
+                            {{ form.username|as_crispy_field }}
+                        </div>
+                        
+                        <!-- Password -->
+                        <div class="mb-3">
+                            {{ form.password|as_crispy_field }}
+                        </div>
+                        
+                        <!-- Remember Device -->
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="rememberDevice">
+                            <label class="form-check-label" for="rememberDevice">
+                                {% trans "Remember this device" %}
+                            </label>
+                        </div>
+                        
+                        <!-- Submit Button -->
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-sign-in-alt"></i>
+                                {% trans "Login" %}
+                            </button>
+                        </div>
+                        
+                        <!-- Links -->
+                        <div class="text-center mt-3">
+                            <a href="#" class="text-decoration-none">
+                                {% trans "Forgot Password?" %}
+                            </a>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center text-muted">
+                    <small>
+                        {% trans "This system is for authorized users only." %}<br>
+                        {% trans "All activities are logged for audit purposes." %}
+                    </small>
+                </div>
+            </div>
+            
+            <!-- Security Notice -->
+            <div class="alert alert-info mt-3">
+                <h6 class="alert-heading">
+                    <i class="fas fa-shield-alt"></i>
+                    {% trans "Security Notice" %}
+                </h6>
+                <small>
+                    <ul class="mb-0 ps-3">
+                        <li>{% trans "Use strong passwords (8+ characters)" %}</li>
+                        <li>{% trans "Do not share your login credentials" %}</li>
+                        <li>{% trans "Report any suspicious activity" %}</li>
+                        <li>{% trans "Session expires after 8 hours" %}</li>
+                    </ul>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-submit on language change
+document.getElementById('language-selector').addEventListener('change', function() {
+    // تحديث الصفحة بلغة جديدة
+    const newLang = this.value;
+    const currentUrl = window.location.href;
+    const url = new URL(currentUrl);
+    url.searchParams.set('lang', newLang);
+    window.location.href = url.toString();
+});
+</script>
+{% endblock %}

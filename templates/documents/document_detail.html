@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ document.document_id }} - {{ block.super }}{% endblock %}
+
+{% block page_title %}{{ document.title }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'documents:list' %}">{% trans "Documents" %}</a></li>
+<li class="breadcrumb-item active">{{ document.document_id }}</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{% url 'documents:download' document.pk %}" class="btn btn-success">
+        <i class="fas fa-download"></i> {% trans "Download" %}
+    </a>
+    
+    {% if can_edit %}
+    <a href="{% url 'documents:edit' document.pk %}" class="btn btn-warning">
+        <i class="fas fa-edit"></i> {% trans "Edit" %}
+    </a>
+    {% endif %}
+    
+    {% if can_change %}
+    <a href="{% url 'documents:change' document.pk %}" class="btn btn-info">
+        <i class="fas fa-code-branch"></i> {% trans "New Version" %}
+    </a>
+    {% endif %}
+    
+    {% if pending_approval %}
+    <a href="{% url 'documents:review' document.pk %}" class="btn btn-primary">
+        <i class="fas fa-check-circle"></i> {% trans "Review" %}
+    </a>
+    {% endif %}
+    
+    {% if document.status == 'approved' and can_publish %}
+    <a href="{% url 'documents:publish' document.pk %}" class="btn btn-success">
+        <i class="fas fa-globe"></i> {% trans "Publish" %}
+    </a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <!-- معلومات الوثيقة -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle"></i> {% trans "Document Information" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Document ID" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        <code>{{ document.document_id }}</code>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Type" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ document.get_document_type_display }}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Category" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ document.category }}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Version" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        <span class="badge bg-secondary">v{{ document.version }}</span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Status" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {% if document.status == 'draft' %}
+                            <span class="badge bg-secondary">{{ document.get_status_display }}</span>
+                        {% elif document.status == 'review' %}
+                            <span class="badge bg-info">{{ document.get_status_display }}</span>
+                        {% elif document.status == 'approved' %}
+                            <span class="badge bg-success">{{ document.get_status_display }}</span>
+                        {% elif document.status == 'published' %}
+                            <span class="badge bg-primary">{{ document.get_status_display }}</span>
+                        {% elif document.status == 'rejected' %}
+                            <span class="badge bg-danger">{{ document.get_status_display }}</span>
+                        {% else %}
+                            <span class="badge bg-dark">{{ document.get_status_display }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if document.description %}
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Description" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ document.description|linebreaks }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if document.keywords %}
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Keywords" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {% for keyword in document.keywords.split ',' %}
+                            <span class="badge bg-light text-dark">{{ keyword.strip }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Language" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ document.get_language_display }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- التواريخ -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar"></i> {% trans "Important Dates" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Created" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ document.created_date|date:"Y-m-d H:i" }}
+                    </div>
+                </div>
+                
+                {% if document.effective_date %}
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Effective Date" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ document.effective_date }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if document.review_date %}
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Next Review" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ document.review_date }}
+                        {% if document.is_due_for_review %}
+                        <span class="badge bg-warning">{% trans "Due" %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if document.expiry_date %}
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Expiry Date" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ document.expiry_date }}
+                        {% if document.is_expired %}
+                        <span class="badge bg-danger">{% trans "Expired" %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- الإصدارات -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-code-branch"></i> {% trans "Version History" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Version" %}</th>
+                                <th>{% trans "Date" %}</th>
+                                <th>{% trans "Changed By" %}</th>
+                                <th>{% trans "Reason" %}</th>
+                                <th>{% trans "Current" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for version in versions %}
+                            <tr>
+                                <td><span class="badge bg-secondary">v{{ version.version_number }}</span></td>
+                                <td>{{ version.created_date|date:"Y-m-d H:i" }}</td>
+                                <td>{{ version.created_by.get_full_name|default:version.created_by.username }}</td>
+                                <td>{{ version.change_reason|truncatewords:10 }}</td>
+                                <td>
+                                    {% if version.is_current %}
+                                    <i class="fas fa-check text-success"></i>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- التعليقات -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-comments"></i> {% trans "Comments" %}
+                </h5>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addCommentModal">
+                    <i class="fas fa-plus"></i> {% trans "Add Comment" %}
+                </button>
+            </div>
+            <div class="card-body">
+                {% for comment in comments %}
+                <div class="mb-3 pb-3 border-bottom">
+                    <div class="d-flex justify-content-between">
+                        <strong>{{ comment.user.get_full_name|default:comment.user.username }}</strong>
+                        <small class="text-muted">{{ comment.created_date|timesince }} {% trans "ago" %}</small>
+                    </div>
+                    <div class="mt-2">
+                        {{ comment.comment|linebreaks }}
+                        {% if comment.is_review_comment %}
+                        <span class="badge bg-warning">{% trans "Review Comment" %}</span>
+                        {% endif %}
+                        {% if comment.resolved %}
+                        <span class="badge bg-success">{% trans "Resolved" %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center">{% trans "No comments yet." %}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- المسؤولون -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-users"></i> {% trans "Responsibilities" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    <strong>{% trans "Author" %}:</strong><br>
+                    {{ document.author.get_full_name|default:document.author.username }}<br>
+                    <small class="text-muted">{{ document.author.position }}</small>
+                </p>
+                <p class="mb-0">
+                    <strong>{% trans "Owner" %}:</strong><br>
+                    {{ document.owner.get_full_name|default:document.owner.username }}<br>
+                    <small class="text-muted">{{ document.owner.position }}</small>
+                </p>
+            </div>
+        </div>
+        
+        <!-- الموافقات -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-check-double"></i> {% trans "Approvals" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for approval in approvals %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ approval.get_approval_role_display }}:</strong><br>
+                            {{ approval.approver.get_full_name|default:approval.approver.username }}
+                        </div>
+                        <div>
+                            {% if approval.status == 'approved' %}
+                                <i class="fas fa-check-circle text-success fa-lg"></i>
+                            {% elif approval.status == 'rejected' %}
+                                <i class="fas fa-times-circle text-danger fa-lg"></i>
+                            {% else %}
+                                <i class="fas fa-clock text-warning fa-lg"></i>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if approval.action_date %}
+                    <small class="text-muted">
+                        {{ approval.action_date|date:"Y-m-d H:i" }}
+                    </small>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <p class="text-muted mb-0">{% trans "No approvals required" %}</p>
+                {% endfor %}
+                
+                {% if document.status == 'draft' and can_edit %}
+                <hr>
+                <a href="{% url 'documents:send_for_review' document.pk %}" class="btn btn-sm btn-info w-100">
+                    <i class="fas fa-paper-plane"></i> {% trans "Send for Review" %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- الإجراءات -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs"></i> {% trans "Actions" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if needs_training %}
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    {% trans "This document requires training acknowledgment" %}
+                </div>
+                <form method="post" action="{% url 'documents:acknowledge' document.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary w-100 mb-2">
+                        <i class="fas fa-check"></i> {% trans "Acknowledge Reading" %}
+                    </button>
+                </form>
+                {% elif training_completed %}
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    {% trans "Training acknowledged" %}
+                </div>
+                {% endif %}
+                
+                <a href="{% url 'documents:download' document.pk %}" class="btn btn-outline-success w-100 mb-2">
+                    <i class="fas fa-download"></i> {% trans "Download Document" %}
+                </a>
+                
+                <button type="button" class="btn btn-outline-secondary w-100" onclick="window.print()">
+                    <i class="fas fa-print"></i> {% trans "Print" %}
+                </button>
+            </div>
+        </div>
+        
+        <!-- سجل الوصول -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-history"></i> {% trans "Access History" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="small">
+                    {% for access in access_logs %}
+                    <div class="mb-2">
+                        <strong>{{ access.user.get_full_name|default:access.user.username }}</strong><br>
+                        {{ access.get_access_type_display }} - {{ access.access_date|date:"Y-m-d H:i" }}
+                        {% if access.acknowledged %}
+                        <i class="fas fa-check text-success"></i>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal إضافة تعليق -->
+<div class="modal fade" id="addCommentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'documents:comment' document.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">{% trans "Add Comment" %}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {{ comment_form.as_p }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        {% trans "Cancel" %}
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        {% trans "Add Comment" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

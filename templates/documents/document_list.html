@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Documents" %} - {{ block.super }}{% endblock %}
+
+{% block page_title %}{% trans "Document Management" %}{% endblock %}
+
+{% block page_actions %}
+{% if perms.documents.add_document %}
+<a href="{% url 'documents:create' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> {% trans "New Document" %}
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- إحصائيات -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">{{ stats.total }}</h5>
+                <p class="card-text text-muted">{% trans "Total" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-warning">{{ stats.draft }}</h5>
+                <p class="card-text text-muted">{% trans "Draft" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-info">{{ stats.review }}</h5>
+                <p class="card-text text-muted">{% trans "Under Review" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-success">{{ stats.approved }}</h5>
+                <p class="card-text text-muted">{% trans "Approved" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">{{ stats.published }}</h5>
+                <p class="card-text text-muted">{% trans "Published" %}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- البحث والفلترة -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" action="">
+            <div class="row">
+                <div class="col-md-4">
+                    {{ form.search }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.document_type }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.category }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.status }}
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> {% trans "Search" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- قائمة الوثائق -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>{% trans "Document ID" %}</th>
+                        <th>{% trans "Title" %}</th>
+                        <th>{% trans "Type" %}</th>
+                        <th>{% trans "Version" %}</th>
+                        <th>{% trans "Status" %}</th>
+                        <th>{% trans "Author" %}</th>
+                        <th>{% trans "Date" %}</th>
+                        <th>{% trans "Actions" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for document in page_obj %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'documents:detail' document.pk %}">
+                                {{ document.document_id }}
+                            </a>
+                        </td>
+                        <td>
+                            {{ document.title }}
+                            {% if document.is_expired %}
+                            <span class="badge bg-danger">{% trans "Expired" %}</span>
+                            {% endif %}
+                            {% if document.is_due_for_review %}
+                            <span class="badge bg-warning">{% trans "Review Due" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ document.get_document_type_display }}</td>
+                        <td>{{ document.version }}</td>
+                        <td>
+                            {% if document.status == 'draft' %}
+                                <span class="badge bg-secondary">{{ document.get_status_display }}</span>
+                            {% elif document.status == 'review' %}
+                                <span class="badge bg-info">{{ document.get_status_display }}</span>
+                            {% elif document.status == 'approved' %}
+                                <span class="badge bg-success">{{ document.get_status_display }}</span>
+                            {% elif document.status == 'published' %}
+                                <span class="badge bg-primary">{{ document.get_status_display }}</span>
+                            {% else %}
+                                <span class="badge bg-dark">{{ document.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ document.author.get_full_name }}</td>
+                        <td>{{ document.created_date|date:"Y-m-d" }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'documents:detail' document.pk %}" class="btn btn-outline-primary" title="{% trans 'View' %}">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'documents:download' document.pk %}" class="btn btn-outline-success" title="{% trans 'Download' %}">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">
+                            {% trans "No documents found." %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                            {% trans "Previous" %}
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                            {% trans "Next" %}
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
