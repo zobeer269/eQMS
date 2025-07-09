@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Training Programs" %} - {{ block.super }}{% endblock %}
+
+{% block page_title %}{% trans "Training Programs" %}{% endblock %}
+
+{% block page_actions %}
+{% if perms.training.add_trainingprogram %}
+<a href="{% url 'training:program_create' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> {% trans "New Program" %}
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- البحث والفلترة -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" action="">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label sr-only">{% trans "Search" %}</label>
+                    {{ form.search }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label sr-only">{% trans "Training Type" %}</label>
+                    {{ form.training_type }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label sr-only">{% trans "Delivery Method" %}</label>
+                    {{ form.delivery_method }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label sr-only">{% trans "Status" %}</label>
+                    {{ form.status }}
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> {% trans "Search" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- قائمة البرامج -->
+<div class="row">
+    {% for program in page_obj %}
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header {% if program.is_mandatory %}bg-warning text-dark{% else %}bg-light{% endif %}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <a href="{% url 'training:program_detail' program.pk %}" class="text-decoration-none text-dark">
+                            {{ program.title }}
+                        </a>
+                    </h6>
+                    <span class="badge bg-secondary">{{ program.program_id }}</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <small class="text-muted">{% trans "Type" %}:</small><br>
+                        {{ program.get_training_type_display }}
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">{% trans "Method" %}:</small><br>
+                        {{ program.get_delivery_method_display }}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <small class="text-muted">{% trans "Duration" %}:</small><br>
+                        {{ program.duration_hours }} {% trans "hours" %}
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">{% trans "Validity" %}:</small><br>
+                        {{ program.validity_months }} {% trans "months" %}
+                    </div>
+                </div>
+                
+                {% if program.description %}
+                <p class="text-muted small mb-3">
+                    {{ program.description|truncatewords:20 }}
+                </p>
+                {% endif %}
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        {% if program.is_mandatory %}
+                        <span class="badge bg-warning text-dark">{% trans "Mandatory" %}</span>
+                        {% endif %}
+                        {% if program.trainer %}
+                        <small class="text-muted">
+                            <i class="fas fa-user-tie"></i> {{ program.trainer.get_full_name }}
+                        </small>
+                        {% endif %}
+                    </div>
+                    <div class="text-end">
+                        <small class="text-muted">
+                            <i class="fas fa-users"></i> {{ program.participants_count|default:"0" }}
+                            <br>
+                            <i class="fas fa-calendar"></i> {{ program.sessions_count|default:"0" }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="btn-group btn-group-sm w-100">
+                    <a href="{% url 'training:program_detail' program.pk %}" class="btn btn-outline-primary">
+                        <i class="fas fa-info-circle"></i> {% trans "Details" %}
+                    </a>
+                    <a href="{% url 'training:program_materials' program.pk %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-file-alt"></i> {% trans "Materials" %}
+                    </a>
+                    {% if perms.training.add_trainingsession or program.trainer == user %}
+                    <a href="{% url 'training:session_create' %}?program={{ program.pk }}" class="btn btn-outline-success">
+                        <i class="fas fa-plus"></i> {% trans "New Session" %}
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info text-center">
+            <i class="fas fa-info-circle fa-3x mb-3 d-block"></i>
+            {% trans "No training programs found." %}
+            {% if perms.training.add_trainingprogram %}
+            <hr>
+            <a href="{% url 'training:program_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> {% trans "Create First Program" %}
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                    {% trans "Previous" %}
+                </a>
+            </li>
+        {% endif %}
+        
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+                <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                </li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                        {{ num }}
+                    </a>
+                </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                    {% trans "Next" %}
+                </a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

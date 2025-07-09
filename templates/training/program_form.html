@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }} - {{ block.super }}{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'training:dashboard' %}">{% trans "Training" %}</a></li>
+<li class="breadcrumb-item"><a href="{% url 'training:program_list' %}">{% trans "Programs" %}</a></li>
+{% if program %}
+<li class="breadcrumb-item"><a href="{% url 'training:program_detail' program.pk %}">{{ program.program_id }}</a></li>
+{% endif %}
+<li class="breadcrumb-item active">{{ title }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <form method="post" id="program-form">
+            {% csrf_token %}
+            
+            <!-- معلومات أساسية -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle"></i> {% trans "Basic Information" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.program_id|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.training_type|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.title|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.title_en|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    {{ form.description|as_crispy_field }}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.delivery_method|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.trainer|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- المتطلبات والإعدادات -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs"></i> {% trans "Requirements & Settings" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ form.duration_hours|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.passing_score|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.validity_months|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        {{ form.is_mandatory }}
+                        <label class="form-check-label" for="{{ form.is_mandatory.id_for_label }}">
+                            {{ form.is_mandatory.label }}
+                        </label>
+                        <small class="form-text text-muted d-block">
+                            {% trans "Check if this training is mandatory for target departments" %}
+                        </small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label>{{ form.prerequisites.label }}</label>
+                            {{ form.prerequisites }}
+                            <small class="form-text text-muted">
+                                {% trans "Hold Ctrl to select multiple programs" %}
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.keywords|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- التخصيص -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users"></i> {% trans "Assignment" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label>{{ form.target_departments.label }}</label>
+                        <small class="form-text text-muted d-block mb-2">
+                            {% trans "Leave empty to make available for all departments" %}
+                        </small>
+                        <div class="row">
+                            {% for checkbox in form.target_departments %}
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    {{ checkbox.tag }}
+                                    <label class="form-check-label" for="{{ checkbox.id_for_label }}">
+                                        {{ checkbox.choice_label }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label>{{ form.related_documents.label }}</label>
+                        {{ form.related_documents }}
+                        <small class="form-text text-muted">
+                            {% trans "Select documents that trainees should read" %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- أزرار الإجراءات -->
+            <div class="d-flex justify-content-between">
+                <a href="{% if program %}{% url 'training:program_detail' program.pk %}{% else %}{% url 'training:program_list' %}{% endif %}" 
+                   class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% trans "Cancel" %}
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> {% trans "Save Program" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// التحقق من صحة البيانات
+document.getElementById('program-form').addEventListener('submit', function(e) {
+    const duration = parseFloat(document.getElementById('id_duration_hours').value);
+    const passingScore = parseInt(document.getElementById('id_passing_score').value);
+    const validity = parseInt(document.getElementById('id_validity_months').value);
+    
+    if (duration <= 0) {
+        alert('{% trans "Duration must be greater than 0" %}');
+        e.preventDefault();
+        return false;
+    }
+    
+    if (passingScore < 0 || passingScore > 100) {
+        alert('{% trans "Passing score must be between 0 and 100" %}');
+        e.preventDefault();
+        return false;
+    }
+    
+    if (validity <= 0) {
+        alert('{% trans "Validity period must be at least 1 month" %}');
+        e.preventDefault();
+        return false;
+    }
+});
+
+// توليد معرف البرنامج تلقائياً
+document.getElementById('id_training_type').addEventListener('change', function() {
+    const type = this.value;
+    const programIdField = document.getElementById('id_program_id');
+    
+    // إذا كان الحقل فارغاً أو يحتوي على معرف مولد
+    if (!programIdField.value || programIdField.value.match(/^TRN-[A-Z]+-\d{3}$/)) {
+        // اقتراح معرف بناءً على النوع
+        const typeMap = {
+            'initial': 'INI',
+            'refresher': 'REF',
+            'update': 'UPD',
+            'compliance': 'COM',
+            'technical': 'TEC',
+            'quality': 'QUA',
+            'safety': 'SAF'
+        };
+        
+        const prefix = typeMap[type] || 'GEN';
+        // هنا يمكن إضافة AJAX call للحصول على الرقم التالي
+        programIdField.value = `TRN-${prefix}-001`;
+    }
+});
+</script>
+{% endblock %}

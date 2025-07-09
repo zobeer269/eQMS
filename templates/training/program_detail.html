@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ program.title }} - {{ block.super }}{% endblock %}
+
+{% block page_title %}{{ program.title }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'training:dashboard' %}">{% trans "Training" %}</a></li>
+<li class="breadcrumb-item"><a href="{% url 'training:program_list' %}">{% trans "Programs" %}</a></li>
+<li class="breadcrumb-item active">{{ program.program_id }}</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    {% if can_edit %}
+    <a href="{% url 'training:program_edit' program.pk %}" class="btn btn-warning">
+        <i class="fas fa-edit"></i> {% trans "Edit" %}
+    </a>
+    {% endif %}
+    
+    {% if can_create_session %}
+    <a href="{% url 'training:session_create' %}?program={{ program.pk }}" class="btn btn-success">
+        <i class="fas fa-plus"></i> {% trans "New Session" %}
+    </a>
+    {% endif %}
+    
+    <a href="{% url 'training:program_materials' program.pk %}" class="btn btn-info">
+        <i class="fas fa-file-alt"></i> {% trans "Materials" %}
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <!-- معلومات البرنامج -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle"></i> {% trans "Program Information" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Program ID" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        <code>{{ program.program_id }}</code>
+                        {% if program.is_mandatory %}
+                        <span class="badge bg-warning text-dark ms-2">{% trans "Mandatory" %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Training Type" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ program.get_training_type_display }}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Delivery Method" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ program.get_delivery_method_display }}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Duration" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ program.duration_hours }} {% trans "hours" %}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Passing Score" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ program.passing_score }}%
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Certificate Validity" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ program.validity_months }} {% trans "months" %}
+                    </div>
+                </div>
+                
+                {% if program.trainer %}
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Default Trainer" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ program.trainer.get_full_name }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if program.description %}
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>{% trans "Description" %}:</strong>
+                    </div>
+                    <div class="col-md-8">
+                        {{ program.description|linebreaks }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- المتطلبات المسبقة -->
+        {% if program.prerequisites.exists %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-list-check"></i> {% trans "Prerequisites" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    {% for prereq in program.prerequisites.all %}
+                    <li class="mb-2">
+                        <i class="fas fa-check-circle text-warning"></i>
+                        <a href="{% url 'training:program_detail' prereq.pk %}">
+                            {{ prereq.title }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- الجلسات القادمة -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-alt"></i> {% trans "Upcoming Sessions" %}
+                </h5>
+                <a href="{% url 'training:session_list' %}?program={{ program.pk }}" class="btn btn-sm btn-outline-primary">
+                    {% trans "View All" %}
+                </a>
+            </div>
+            <div class="card-body">
+                {% if upcoming_sessions %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Session Code" %}</th>
+                                <th>{% trans "Date" %}</th>
+                                <th>{% trans "Trainer" %}</th>
+                                <th>{% trans "Location" %}</th>
+                                <th>{% trans "Participants" %}</th>
+                                <th>{% trans "Actions" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in upcoming_sessions %}
+                            <tr>
+                                <td>{{ session.session_code }}</td>
+                                <td>{{ session.scheduled_date|date:"Y-m-d H:i" }}</td>
+                                <td>{{ session.trainer.get_full_name }}</td>
+                                <td>{{ session.location }}</td>
+                                <td>{{ session.participants_count }}/{{ session.max_participants }}</td>
+                                <td>
+                                    <a href="{% url 'training:session_detail' session.pk %}" class="btn btn-sm btn-outline-primary">
+                                        {% trans "View" %}
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center">{% trans "No upcoming sessions scheduled." %}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- المواد التدريبية -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-alt"></i> {% trans "Training Materials" %}
+                </h5>
+                <a href="{% url 'training:program_materials' program.pk %}" class="btn btn-sm btn-outline-primary">
+                    {% trans "Manage" %}
+                </a>
+            </div>
+            <div class="card-body">
+                {% if materials %}
+                <div class="list-group list-group-flush">
+                    {% for material in materials|slice:":5" %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ material.title }}</h6>
+                                <small class="text-muted">
+                                    {{ material.get_material_type_display }}
+                                    {% if material.is_mandatory %}
+                                    <span class="badge bg-warning text-dark">{% trans "Mandatory" %}</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div>
+                                {% if material.is_downloadable %}
+                                <a href="{{ material.file.url }}" class="btn btn-sm btn-outline-success" download>
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center">{% trans "No materials available yet." %}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- الإحصائيات -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar"></i> {% trans "Statistics" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <h4 class="mb-0">{{ stats.total_sessions }}</h4>
+                        <small class="text-muted">{% trans "Total Sessions" %}</small>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <h4 class="mb-0">{{ stats.total_participants }}</h4>
+                        <small class="text-muted">{% trans "Total Participants" %}</small>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <h4 class="mb-0">{{ stats.completion_rate|floatformat:1 }}%</h4>
+                        <small class="text-muted">{% trans "Completion Rate" %}</small>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <h4 class="mb-0">{{ stats.average_score|floatformat:1 }}%</h4>
+                        <small class="text-muted">{% trans "Average Score" %}</small>
+                    </div>
+                </div>
+                
+                {% if stats.effectiveness_rating > 0 %}
+                <hr>
+                <div class="text-center">
+                    <h5>{% trans "Effectiveness Rating" %}</h5>
+                    <div class="mb-2">
+                        {% for i in "12345" %}
+                            {% if i|add:0 <= stats.effectiveness_rating %}
+                                <i class="fas fa-star text-warning fa-lg"></i>
+                            {% else %}
+                                <i class="far fa-star text-muted fa-lg"></i>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <small class="text-muted">{{ stats.effectiveness_rating|floatformat:1 }}/5.0</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- الأقسام المستهدفة -->
+        {% if program.target_departments.exists %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-building"></i> {% trans "Target Departments" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    {% for dept in program.target_departments.all %}
+                    <li><i class="fas fa-check text-success"></i> {{ dept.get_department_display }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- الوثائق المرتبطة -->
+        {% if program.related_documents.exists %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file"></i> {% trans "Related Documents" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    {% for doc in program.related_documents.all %}
+                    <li class="mb-2">
+                        <a href="{% url 'documents:detail' doc.pk %}">
+                            <i class="fas fa-file-alt"></i> {{ doc.title }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

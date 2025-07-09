@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "My Training" %} - {{ block.super }}{% endblock %}
+
+{% block page_title %}{% trans "My Training" %}{% endblock %}
+
+{% block content %}
+<!-- ملخص التدريب -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <h3 class="text-primary">{{ current_trainings.count }}</h3>
+                <p class="mb-0">{% trans "Current Trainings" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <h3 class="text-success">{{ completed_trainings.count }}</h3>
+                <p class="mb-0">{% trans "Completed" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <h3 class="text-warning">{{ valid_certificates.count }}</h3>
+                <p class="mb-0">{% trans "Valid Certificates" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-danger">
+            <div class="card-body">
+                <h3 class="text-danger">{{ expired_certificates.count }}</h3>
+                <p class="mb-0">{% trans "Expired Certificates" %}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- التبويبات -->
+<ul class="nav nav-tabs mb-4" id="trainingTabs" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link active" id="current-tab" data-bs-toggle="tab" href="#current" role="tab">
+            <i class="fas fa-clock"></i> {% trans "Current Trainings" %}
+            {% if current_trainings.count > 0 %}
+            <span class="badge bg-primary">{{ current_trainings.count }}</span>
+            {% endif %}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="mandatory-tab" data-bs-toggle="tab" href="#mandatory" role="tab">
+            <i class="fas fa-exclamation-triangle"></i> {% trans "Mandatory Trainings" %}
+            {% if pending_mandatory.count > 0 %}
+            <span class="badge bg-warning">{{ pending_mandatory.count }}</span>
+            {% endif %}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="completed-tab" data-bs-toggle="tab" href="#completed" role="tab">
+            <i class="fas fa-check-circle"></i> {% trans "Completed Trainings" %}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="certificates-tab" data-bs-toggle="tab" href="#certificates" role="tab">
+            <i class="fas fa-certificate"></i> {% trans "Certificates" %}
+        </a>
+    </li>
+</ul>
+
+<!-- محتوى التبويبات -->
+<div class="tab-content" id="trainingTabsContent">
+    <!-- التدريبات الحالية -->
+    <div class="tab-pane fade show active" id="current" role="tabpanel">
+        {% if current_trainings %}
+        <div class="row">
+            {% for record in current_trainings %}
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header {% if record.status == 'enrolled' %}bg-info text-white{% else %}bg-warning text-dark{% endif %}">
+                        <h6 class="mb-0">{{ record.session.program.title }}</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2">
+                            <strong>{% trans "Session" %}:</strong> {{ record.session.session_code }}<br>
+                            <strong>{% trans "Date" %}:</strong> {{ record.session.scheduled_date|date:"Y-m-d H:i" }}<br>
+                            <strong>{% trans "Location" %}:</strong> {{ record.session.location }}<br>
+                            <strong>{% trans "Trainer" %}:</strong> {{ record.session.trainer.get_full_name }}<br>
+                            <strong>{% trans "Status" %}:</strong> 
+                            <span class="badge bg-secondary">{{ record.get_status_display }}</span>
+                        </p>
+                        
+                        {% if record.session.program.description %}
+                        <p class="text-muted small">
+                            {{ record.session.program.description|truncatewords:20 }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer">
+                        <div class="btn-group btn-group-sm w-100">
+                            <a href="{% url 'training:session_detail' record.session.pk %}" class="btn btn-outline-primary">
+                                <i class="fas fa-info-circle"></i> {% trans "Session Details" %}
+                            </a>
+                            <a href="{% url 'training:record_detail' record.pk %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-user"></i> {% trans "My Progress" %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info text-center">
+            <i class="fas fa-info-circle"></i> {% trans "You are not enrolled in any training sessions currently." %}
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- التدريبات الإلزامية -->
+    <div class="tab-pane fade" id="mandatory" role="tabpanel">
+        {% if pending_mandatory %}
+        <div class="alert alert-warning mb-4">
+            <i class="fas fa-exclamation-triangle"></i>
+            {% trans "The following mandatory trainings are required for your position/department:" %}
+        </div>
+        
+        <div class="row">
+            {% for program in pending_mandatory %}
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100 border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0">{{ program.title }}</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2">
+                            <strong>{% trans "Type" %}:</strong> {{ program.get_training_type_display }}<br>
+                            <strong>{% trans "Duration" %}:</strong> {{ program.duration_hours }} {% trans "hours" %}<br>
+                            <strong>{% trans "Validity" %}:</strong> {{ program.validity_months }} {% trans "months" %}<br>
+                            <strong>{% trans "Passing Score" %}:</strong> {{ program.passing_score }}%
+                        </p>
+                        
+                        {% if program.description %}
+                        <p class="text-muted small">
+                            {{ program.description|truncatewords:20 }}
+                        </p>
+                        {% endif %}
+                        
+                        <!-- الجلسات القادمة -->
+                        {% with program.sessions.all|dictsort:"scheduled_date" as upcoming %}
+                        {% if upcoming %}
+                        <hr>
+                        <h6>{% trans "Upcoming Sessions" %}:</h6>
+                        <ul class="list-unstyled small">
+                            {% for session in upcoming|slice:":3" %}
+                            {% if session.status == 'scheduled' and session.scheduled_date >= now %}
+                            <li>
+                                <i class="fas fa-calendar"></i> 
+                                {{ session.scheduled_date|date:"Y-m-d H:i" }} - 
+                                {{ session.location }}
+                                {% if not session.is_full %}
+                                <a href="{% url 'training:session_detail' session.pk %}" class="btn btn-sm btn-success float-end">
+                                    {% trans "Enroll" %}
+                                </a>
+                                {% else %}
+                                <span class="badge bg-danger float-end">{% trans "Full" %}</span>
+                                {% endif %}
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                    <div class="card-footer">
+                        <a href="{% url 'training:program_detail' program.pk %}" class="btn btn-warning btn-sm w-100">
+                            <i class="fas fa-info-circle"></i> {% trans "View Program Details" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-success text-center">
+            <i class="fas fa-check-circle"></i> {% trans "You have completed all mandatory trainings!" %}
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- التدريبات المكتملة -->
+    <div class="tab-pane fade" id="completed" role="tabpanel">
+        {% if completed_trainings %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>{% trans "Program" %}</th>
+                        <th>{% trans "Session" %}</th>
+                        <th>{% trans "Completed Date" %}</th>
+                        <th>{% trans "Score" %}</th>
+                        <th>{% trans "Certificate" %}</th>
+                        <th>{% trans "Actions" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in completed_trainings %}
+                    <tr>
+                        <td>{{ record.session.program.title }}</td>
+                        <td>{{ record.session.session_code }}</td>
+                        <td>{{ record.completed_date|date:"Y-m-d" }}</td>
+                        <td>
+                            {% if record.post_test_score %}
+                            <span class="badge {% if record.is_passed %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ record.post_test_score|floatformat:1 }}%
+                            </span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record.certificate_number %}
+                            <span class="badge bg-primary">{{ record.certificate_number }}</span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'training:record_detail' record.pk %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if not record.evaluation %}
+                                <a href="{% url 'training:record_evaluate' record.pk %}" class="btn btn-outline-warning">
+                                    <i class="fas fa-star"></i> {% trans "Evaluate" %}
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info text-center">
+            <i class="fas fa-info-circle"></i> {% trans "You haven't completed any trainings yet." %}
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- الشهادات -->
+    <div class="tab-pane fade" id="certificates" role="tabpanel">
+        <!-- الشهادات الصالحة -->
+        {% if valid_certificates %}
+        <h5 class="mb-3">
+            <i class="fas fa-check-circle text-success"></i> {% trans "Valid Certificates" %}
+        </h5>
+        <div class="row mb-4">
+            {% for record in valid_certificates %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100 border-success">
+                    <div class="card-body">
+                        <h6 class="card-title">{{ record.session.program.title }}</h6>
+                        <p class="card-text">
+                            <strong>{% trans "Certificate #" %}:</strong> {{ record.certificate_number }}<br>
+                            <strong>{% trans "Issued" %}:</strong> {{ record.certificate_issued_date }}<br>
+                            <strong>{% trans "Valid Until" %}:</strong> 
+                            <span class="text-success">{{ record.certificate_expiry_date }}</span>
+                        </p>
+                    </div>
+                    <div class="card-footer">
+                        <a href="{% url 'training:record_certificate' record.pk %}" class="btn btn-success btn-sm w-100">
+                            <i class="fas fa-download"></i> {% trans "Download Certificate" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- الشهادات المنتهية -->
+        {% if expired_certificates %}
+        <h5 class="mb-3">
+            <i class="fas fa-times-circle text-danger"></i> {% trans "Expired Certificates" %}
+        </h5>
+        <div class="row">
+            {% for record in expired_certificates %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100 border-danger">
+                    <div class="card-body">
+                        <h6 class="card-title">{{ record.session.program.title }}</h6>
+                        <p class="card-text">
+                            <strong>{% trans "Certificate #" %}:</strong> {{ record.certificate_number }}<br>
+                            <strong>{% trans "Issued" %}:</strong> {{ record.certificate_issued_date }}<br>
+                            <strong>{% trans "Expired" %}:</strong> 
+                            <span class="text-danger">{{ record.certificate_expiry_date }}</span>
+                        </p>
+                    </div>
+                    <div class="card-footer">
+                        <a href="{% url 'training:program_detail' record.session.program.pk %}" class="btn btn-danger btn-sm w-100">
+                            <i class="fas fa-redo"></i> {% trans "Renew Training" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        {% if not valid_certificates and not expired_certificates %}
+        <div class="alert alert-info text-center">
+            <i class="fas fa-info-circle"></i> {% trans "You don't have any certificates yet." %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.db.models import Q, Count
 from datetime import timedelta
 from accounts.models import AuditLog
-from documents.models import Document, DocumentApproval
+from documents.models import Document, DocumentApproval, DocumentAccess
 
 @login_required
 def dashboard_view(request):
@@ -28,6 +28,13 @@ def dashboard_view(request):
         review_date__lte=timezone.now().date() + timedelta(days=30),
         status='published'
     ).count()
+    
+    # الوثائق الشائعة - أكثر الوثائق مشاهدة
+    popular_documents = Document.objects.filter(
+        status='published'
+    ).annotate(
+        views_count=Count('access_logs')  # تم التصحيح من 'documentaccess' إلى 'access_logs'
+    ).order_by('-views_count')[:5]
     
     # الموردين النشطين (سنضيفه لاحقاً عند بناء وحدة الموردين)
     active_suppliers = 0
@@ -126,6 +133,9 @@ def dashboard_view(request):
         'training_percentage': training_percentage,
         'supplier_percentage': supplier_percentage,
         'audit_percentage': audit_percentage,
+        
+        # الوثائق الشائعة
+        'popular_documents': popular_documents,
     }
     
     return render(request, 'dashboard.html', context)

@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Training Sessions" %} - {{ block.super }}{% endblock %}
+
+{% block page_title %}{% trans "Training Sessions" %}{% endblock %}
+
+{% block page_actions %}
+{% if perms.training.add_trainingsession %}
+<a href="{% url 'training:session_create' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> {% trans "New Session" %}
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- الفلاتر -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" action="">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "Status" %}</label>
+                    <select name="status" class="form-select">
+                        <option value="">{% trans "All Status" %}</option>
+                        <option value="scheduled" {% if status_filter == 'scheduled' %}selected{% endif %}>{% trans "Scheduled" %}</option>
+                        <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>{% trans "In Progress" %}</option>
+                        <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>{% trans "Completed" %}</option>
+                        <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>{% trans "Cancelled" %}</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "Date Filter" %}</label>
+                    <select name="date_filter" class="form-select">
+                        <option value="">{% trans "All Dates" %}</option>
+                        <option value="upcoming" {% if date_filter == 'upcoming' %}selected{% endif %}>{% trans "Upcoming" %}</option>
+                        <option value="past" {% if date_filter == 'past' %}selected{% endif %}>{% trans "Past" %}</option>
+                        <option value="this_month" {% if date_filter == 'this_month' %}selected{% endif %}>{% trans "This Month" %}</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">&nbsp;</label>
+                    <div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter"></i> {% trans "Apply Filters" %}
+                        </button>
+                        <a href="{% url 'training:session_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-redo"></i> {% trans "Reset" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- قائمة الجلسات -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>{% trans "Session Code" %}</th>
+                        <th>{% trans "Program" %}</th>
+                        <th>{% trans "Date/Time" %}</th>
+                        <th>{% trans "Trainer" %}</th>
+                        <th>{% trans "Location" %}</th>
+                        <th>{% trans "Participants" %}</th>
+                        <th>{% trans "Status" %}</th>
+                        <th>{% trans "Actions" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in page_obj %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'training:session_detail' session.pk %}">
+                                <strong>{{ session.session_code }}</strong>
+                            </a>
+                        </td>
+                        <td>
+                            <a href="{% url 'training:program_detail' session.program.pk %}" class="text-decoration-none">
+                                {{ session.program.title|truncatewords:5 }}
+                            </a>
+                        </td>
+                        <td>
+                            {{ session.scheduled_date|date:"Y-m-d" }}<br>
+                            <small class="text-muted">{{ session.scheduled_date|time:"H:i" }}</small>
+                        </td>
+                        <td>{{ session.trainer.get_full_name }}</td>
+                        <td>{{ session.location }}</td>
+                        <td>
+                            <div class="progress" style="height: 20px;">
+                                {% if session.max_participants > 0 %}
+                                <div class="progress-bar {% if session.enrolled_count >= session.max_participants %}bg-danger{% else %}bg-success{% endif %}" 
+                                     style="width: {% widthratio session.enrolled_count session.max_participants 100 %}%">
+                                    {{ session.enrolled_count }}/{{ session.max_participants }}
+                                </div>
+                                {% else %}
+                                <div class="progress-bar bg-success" style="width: 100%">
+                                    {{ session.enrolled_count }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if session.status == 'scheduled' %}
+                                <span class="badge bg-info">{{ session.get_status_display }}</span>
+                            {% elif session.status == 'in_progress' %}
+                                <span class="badge bg-warning">{{ session.get_status_display }}</span>
+                            {% elif session.status == 'completed' %}
+                                <span class="badge bg-success">{{ session.get_status_display }}</span>
+                            {% elif session.status == 'cancelled' %}
+                                <span class="badge bg-danger">{{ session.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'training:session_detail' session.pk %}" 
+                                   class="btn btn-outline-primary" 
+                                   data-bs-toggle="tooltip" 
+                                   title="{% trans 'View Details' %}">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if session.status == 'scheduled' and perms.training.change_trainingsession %}
+                                <a href="{% url 'training:session_edit' session.pk %}" 
+                                   class="btn btn-outline-warning" 
+                                   data-bs-toggle="tooltip" 
+                                   title="{% trans 'Edit' %}">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="fas fa-calendar-times fa-3x mb-3 d-block"></i>
+                            {% trans "No training sessions found." %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}">
+                            {% trans "Previous" %}
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}">
+                                {{ num }}
+                            </a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}">
+                            {% trans "Next" %}
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- تقويم الجلسات -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h6 class="m-0 fw-bold text-primary">
+            <i class="fas fa-calendar"></i> {% trans "Sessions Calendar" %}
+        </h6>
+    </div>
+    <div class="card-body">
+        <div id="calendar"></div>
+    </div>
+</div>
+
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.10.2/main.min.css' rel='stylesheet' />
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.10.2/main.min.js'></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+    
+    // Initialize calendar
+    var calendarEl = document.getElementById('calendar');
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: '{{ LANGUAGE_CODE }}',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,listWeek'
+        },
+        events: '{% url "training:sessions_calendar_api" %}',
+        eventClick: function(info) {
+            window.location.href = info.event.url;
+        },
+        eventDidMount: function(info) {
+            // Add tooltip with session details
+            info.el.setAttribute('data-bs-toggle', 'tooltip');
+            info.el.setAttribute('data-bs-placement', 'top');
+            info.el.setAttribute('title', 
+                info.event.extendedProps.trainer + ' - ' + 
+                info.event.extendedProps.location + ' (' +
+                info.event.extendedProps.participants + '/' + 
+                info.event.extendedProps.max_participants + ')'
+            );
+            new bootstrap.Tooltip(info.el);
+        }
+    });
+    calendar.render();
+});
+</script>
+{% endblock %}

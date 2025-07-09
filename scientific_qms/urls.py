@@ -19,7 +19,7 @@ urlpatterns += i18n_patterns(
     path('accounts/', include('accounts.urls')),
     path('documents/', include('documents.urls')),
     # سنضيف باقي التطبيقات هنا لاحقاً
-    # path('training/', include('training.urls')),
+    path('training/', include('training.urls')),
     # path('suppliers/', include('suppliers.urls')),
     # path('equipment/', include('equipment.urls')),
     # path('audits/', include('audits.urls')),
