@@ -8,12 +8,12 @@ from django.utils.translation import gettext_lazy as _
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-your-secret-key-here'
+SECRET_KEY = 'k4u94o5!*2k-vr9@8&^0d#8n+1^@#f(v^+2$k+9-$e5m^vuw3q'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['157.180.76.220', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['46.62.149.139', 'localhost', '127.0.0.1']
 
 # Application definition
 INSTALLED_APPS = [
