@@ -1,0 +1,466 @@
+<!-- templates/dashboard/integrated_dashboard.html -->
+{% extends 'base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% trans "Integrated QMS Dashboard" %}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css" rel="stylesheet">
+<style>
+    .qms-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .qms-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.1);
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+    
+    .qms-card:hover::before {
+        transform: translateX(0);
+    }
+    
+    .qms-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .system-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        margin-bottom: 2rem;
+    }
+    
+    .system-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .system-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px 15px 0 0;
+        padding: 1rem 1.5rem;
+    }
+    
+    .deviation-header { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); }
+    .capa-header { background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); }
+    .change-header { background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); }
+    
+    .integration-flow {
+        position: relative;
+        padding: 2rem 0;
+    }
+    
+    .flow-step {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        position: relative;
+        margin-bottom: 1rem;
+    }
+    
+    .flow-arrow {
+        position: absolute;
+        right: -25px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.5rem;
+        color: #667eea;
+    }
+    
+    .priority-high { background-color: #e74c3c !important; }
+    .priority-medium { background-color: #f39c12 !important; color: #000 !important; }
+    .priority-low { background-color: #27ae60 !important; }
+    
+    .status-badge {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 20px 0;
+    }
+    
+    .integration-stats {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .quick-action-btn {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: white;
+        border-radius: 25px;
+        padding: 0.5rem 1rem;
+        margin: 0.25rem;
+        transition: all 0.3s ease;
+    }
+    
+    .quick-action-btn:hover {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        transform: translateY(-2px);
+    }
+    
+    .alert-card {
+        border: none;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .progress-ring {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+    
+    .progress-circle {
+        fill: none;
+        stroke-width: 8;
+    }
+    
+    .progress-background {
+        stroke: #e9ecef;
+    }
+    
+    .progress-bar {
+        stroke: #667eea;
+        stroke-linecap: round;
+        transition: stroke-dasharray 0.3s ease;
+    }
+    
+    @media (max-width: 768px) {
+        .metric-value {
+            font-size: 2rem;
+        }
+        
+        .flow-arrow {
+            display: none;
+        }
+        
+        .chart-container {
+            height: 250px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-tachometer-alt"></i> {% trans "Integrated QMS Dashboard" %}
+        </h1>
+        <div class="btn-group" role="group">
+            <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-plus"></i> {% trans "Quick Create" %}
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{% url 'deviations:create' %}">
+                    <i class="fas fa-exclamation-triangle text-danger"></i> {% trans "New Deviation" %}
+                </a></li>
+                <li><a class="dropdown-item" href="{% url 'capa:create' %}">
+                    <i class="fas fa-clipboard-check text-warning"></i> {% trans "New CAPA" %}
+                </a></li>
+                <li><a class="dropdown-item" href="{% url 'change_control:create' %}">
+                    <i class="fas fa-exchange-alt text-info"></i> {% trans "New Change Request" %}
+                </a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Key Metrics Row -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6">
+            <div class="qms-card text-center">
+                <div class="metric-value">{{ total_active_items }}</div>
+                <div class="metric-label">{% trans "Total Active Items" %}</div>
+                <small class="d-block mt-2">
+                    <i class="fas fa-arrow-up"></i> +{{ new_this_week }} {% trans "this week" %}
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="qms-card text-center">
+                <div class="metric-value">{{ overdue_items }}</div>
+                <div class="metric-label">{% trans "Overdue Items" %}</div>
+                <small class="d-block mt-2">
+                    {% if overdue_items > 0 %}
+                        <i class="fas fa-exclamation-triangle"></i> {% trans "Requires attention" %}
+                    {% else %}
+                        <i class="fas fa-check"></i> {% trans "All on track" %}
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="qms-card text-center">
+                <div class="metric-value">{{ pending_approvals }}</div>
+                <div class="metric-label">{% trans "Pending My Approval" %}</div>
+                <small class="d-block mt-2">
+                    <i class="fas fa-clock"></i> {% trans "Action required" %}
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="qms-card text-center">
+                <div class="metric-value">{{ completed_this_month }}</div>
+                <div class="metric-label">{% trans "Completed This Month" %}</div>
+                <small class="d-block mt-2">
+                    <i class="fas fa-chart-line"></i> +{{ completion_rate }}% {% trans "vs last month" %}
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Integration Flow -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card system-card">
+                <div class="system-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-network-wired"></i> {% trans "QMS Integration Flow" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="integration-flow">
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                <div class="flow-step">
+                                    <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
+                                    <h6>{% trans "Deviation" %}</h6>
+                                    <p class="mb-0 text-muted small">{% trans "Issue identified" %}</p>
+                                    <div class="flow-arrow d-none d-md-block">
+                                        <i class="fas fa-arrow-right"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="flow-step">
+                                    <i class="fas fa-search fa-2x text-info mb-2"></i>
+                                    <h6>{% trans "Investigation" %}</h6>
+                                    <p class="mb-0 text-muted small">{% trans "Root cause analysis" %}</p>
+                                    <div class="flow-arrow d-none d-md-block">
+                                        <i class="fas fa-arrow-right"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="flow-step">
+                                    <i class="fas fa-clipboard-check fa-2x text-warning mb-2"></i>
+                                    <h6>{% trans "CAPA" %}</h6>
+                                    <p class="mb-0 text-muted small">{% trans "Corrective actions" %}</p>
+                                    <div class="flow-arrow d-none d-md-block">
+                                        <i class="fas fa-arrow-right"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="flow-step">
+                                    <i class="fas fa-exchange-alt fa-2x text-success mb-2"></i>
+                                    <h6>{% trans "Change Control" %}</h6>
+                                    <p class="mb-0 text-muted small">{% trans "System improvements" %}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="integration-stats mt-4">
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <h4>{{ integration_metrics.deviation_to_capa_rate }}%</h4>
+                                <small>{% trans "Deviation to CAPA Rate" %}</small>
+                            </div>
+                            <div class="col-md-4">
+                                <h4>{{ integration_metrics.capa_to_change_rate }}%</h4>
+                                <small>{% trans "CAPA to Change Rate" %}</small>
+                            </div>
+                            <div class="col-md-4">
+                                <h4>{{ integration_metrics.avg_resolution_time }} {% trans "days" %}</h4>
+                                <small>{% trans "Average Resolution Time" %}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Systems Overview Row -->
+    <div class="row">
+        <!-- Deviations System -->
+        <div class="col-lg-4 mb-4">
+            <div class="card system-card h-100">
+                <div class="system-header deviation-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> {% trans "Deviation Management" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <h4 class="text-primary">{{ deviations.total }}</h4>
+                            <small class="text-muted">{% trans "Total" %}</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-warning">{{ deviations.open }}</h4>
+                            <small class="text-muted">{% trans "Open" %}</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-danger">{{ deviations.overdue }}</h4>
+                            <small class="text-muted">{% trans "Overdue" %}</small>
+                        </div>
+                    </div>
+                    
+                    {% if recent_deviations %}
+                        <h6 class="mb-3">{% trans "Recent Deviations" %}</h6>
+                        {% for deviation in recent_deviations %}
+                        <div class="alert alert-card alert-light mb-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ deviation.deviation_number }}</strong><br>
+                                    <small>{{ deviation.title|truncatechars:40 }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge priority-{{ deviation.severity }}">
+                                        {{ deviation.get_severity_display }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <div class="d-grid gap-2 mt-3">
+                        <a href="{% url 'deviations:dashboard' %}" class="btn btn-outline-danger">
+                            {% trans "View Dashboard" %}
+                        </a>
+                        <a href="{% url 'deviations:create' %}" class="btn btn-danger">
+                            {% trans "Report Deviation" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CAPA System -->
+        <div class="col-lg-4 mb-4">
+            <div class="card system-card h-100">
+                <div class="system-header capa-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clipboard-check"></i> {% trans "CAPA Management" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <h4 class="text-primary">{{ capas.total }}</h4>
+                            <small class="text-muted">{% trans "Total" %}</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-warning">{{ capas.active }}</h4>
+                            <small class="text-muted">{% trans "Active" %}</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-danger">{{ capas.overdue }}</h4>
+                            <small class="text-muted">{% trans "Overdue" %}</small>
+                        </div>
+                    </div>
+                    
+                    {% if recent_capas %}
+                        <h6 class="mb-3">{% trans "Recent CAPAs" %}</h6>
+                        {% for capa in recent_capas %}
+                        <div class="alert alert-card alert-light mb-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ capa.capa_number }}</strong><br>
+                                    <small>{{ capa.title|truncatechars:40 }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge priority-{{ capa.priority }}">
+                                        {{ capa.get_priority_display }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <div class="d-grid gap-2 mt-3">
+                        <a href="{% url 'capa:dashboard' %}" class="btn btn-outline-warning">
+                            {% trans "View Dashboard" %}
+                        </a>
+                        <a href="{% url 'capa:create' %}" class="btn btn-warning">
+                            {% trans "Create CAPA" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Change Control System -->
+        <div class="col-lg-4 mb-4">
+            <div class="card system-card h-100">
+                <div class="system-header change-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exchange-alt"></i> {% trans "Change Control" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <h4 class="text-primary">{{ changes.total }}</h4>
+                            <small class="text-muted">{% trans "Total" %}</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-warning">{{ changes.active }}</h4>
+                            <small class="text-muted">{% trans "Active" %}</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-danger">{{ changes.overdue }}</h4>
+                            <small class="text-muted">{% trans "Overdue" %}</small>
+                        </div>
+                    </div>

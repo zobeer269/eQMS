@@ -1,0 +1,497 @@
+<!-- templates/change_control/dashboard.html -->
+{% extends 'base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% trans "Change Control Dashboard" %}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css" rel="stylesheet">
+<style>
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: transform 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .alert-card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 20px 0;
+    }
+    
+    .status-badge {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 20px;
+    }
+    
+    .priority-high { background-color: #dc3545; }
+    .priority-medium { background-color: #ffc107; color: #000; }
+    .priority-low { background-color: #28a745; }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(0,123,255,0.05);
+    }
+    
+    .progress-mini {
+        height: 6px;
+        border-radius: 3px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-exchange-alt"></i> {% trans "Change Control Dashboard" %}
+        </h1>
+        <div class="btn-group" role="group">
+            <a href="{% url 'change_control:create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> {% trans "New Change Request" %}
+            </a>
+            <a href="{% url 'change_control:calendar' %}" class="btn btn-outline-primary">
+                <i class="fas fa-calendar"></i> {% trans "Calendar View" %}
+            </a>
+            <a href="{% url 'change_control:reports' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-chart-bar"></i> {% trans "Reports" %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Metrics Cards Row -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6">
+            <div class="metric-card text-center">
+                <div class="metric-value">{{ monthly_stats.submitted }}</div>
+                <div class="metric-label">{% trans "Submitted This Month" %}</div>
+                <small class="d-block mt-2">
+                    <i class="fas fa-arrow-up"></i> +{{ monthly_stats.submitted|add:"-5" }} {% trans "from last month" %}
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="metric-card text-center">
+                <div class="metric-value">{{ monthly_stats.approved }}</div>
+                <div class="metric-label">{% trans "Approved This Month" %}</div>
+                <small class="d-block mt-2">
+                    <i class="fas fa-check-circle"></i> {{ monthly_stats.approved|percentage:monthly_stats.submitted }}% {% trans "approval rate" %}
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="metric-card text-center">
+                <div class="metric-value">{{ overdue_changes|length }}</div>
+                <div class="metric-label">{% trans "Overdue Changes" %}</div>
+                <small class="d-block mt-2">
+                    {% if overdue_changes %}
+                        <i class="fas fa-exclamation-triangle"></i> {% trans "Requires attention" %}
+                    {% else %}
+                        <i class="fas fa-check"></i> {% trans "All on track" %}
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="metric-card text-center">
+                <div class="metric-value">{{ pending_approvals|length }}</div>
+                <div class="metric-label">{% trans "Pending My Approval" %}</div>
+                <small class="d-block mt-2">
+                    <i class="fas fa-clock"></i> {% trans "Action required" %}
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row">
+        <!-- Active Changes -->
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-tasks"></i> {% trans "Active Changes" %}
+                    </h6>
+                    <a href="{% url 'change_control:list' %}" class="btn btn-sm btn-outline-primary">
+                        {% trans "View All" %}
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if active_changes %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>{% trans "Change Number" %}</th>
+                                        <th>{% trans "Title" %}</th>
+                                        <th>{% trans "Status" %}</th>
+                                        <th>{% trans "Owner" %}</th>
+                                        <th>{% trans "Due Date" %}</th>
+                                        <th>{% trans "Progress" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for change in active_changes %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'change_control:detail' change.pk %}" class="text-decoration-none">
+                                                <strong>{{ change.change_number }}</strong>
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                {% if change.urgency == 'critical' %}
+                                                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                                                {% elif change.urgency == 'high' %}
+                                                    <i class="fas fa-exclamation-circle text-warning me-2"></i>
+                                                {% endif %}
+                                                {{ change.title|truncatechars:40 }}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge status-badge 
+                                                {% if change.status == 'approved' %}bg-success
+                                                {% elif change.status == 'in_progress' %}bg-warning text-dark
+                                                {% elif change.status == 'submitted' %}bg-info
+                                                {% else %}bg-secondary{% endif %}">
+                                                {{ change.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if change.change_owner %}
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-sm me-2">
+                                                        <span class="badge bg-primary rounded-circle">
+                                                            {{ change.change_owner.first_name|first }}{{ change.change_owner.last_name|first }}
+                                                        </span>
+                                                    </div>
+                                                    {{ change.change_owner.get_full_name }}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">{% trans "Unassigned" %}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if change.target_implementation_date %}
+                                                <span class="{% if change.is_overdue %}text-danger{% endif %}">
+                                                    {{ change.target_implementation_date|date:"M d, Y" }}
+                                                </span>
+                                                {% if change.is_overdue %}
+                                                    <i class="fas fa-exclamation-triangle text-danger ms-1"></i>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">{% trans "Not set" %}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress progress-mini flex-grow-1 me-2">
+                                                    <div class="progress-bar bg-primary" 
+                                                         style="width: {{ change.implementation_progress }}%">
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted">{{ change.implementation_progress }}%</small>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">{% trans "No active changes at the moment" %}</p>
+                            <a href="{% url 'change_control:create' %}" class="btn btn-primary">
+                                {% trans "Create First Change Request" %}
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-chart-pie"></i> {% trans "Changes by Status" %}
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="statusChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-chart-line"></i> {% trans "Monthly Trends" %}
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="trendChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Pending Approvals -->
+            {% if pending_approvals %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-warning">
+                        <i class="fas fa-clock"></i> {% trans "Pending My Approval" %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for approval in pending_approvals %}
+                    <div class="alert alert-warning alert-card mb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>{{ approval.change_control.change_number }}</strong><br>
+                                <small>{{ approval.change_control.title|truncatechars:50 }}</small><br>
+                                <small class="text-muted">
+                                    {% trans "Type" %}: {{ approval.get_approval_type_display }}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                {% if approval.is_overdue %}
+                                    <span class="badge bg-danger">{% trans "Overdue" %}</span>
+                                {% else %}
+                                    <small class="text-muted">
+                                        {% trans "Due" %}: {{ approval.due_date|date:"M d" }}
+                                    </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <a href="{% url 'change_control:approve' approval.change_control.pk %}" 
+                               class="btn btn-sm btn-warning">
+                                {% trans "Review" %}
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- My Tasks -->
+            {% if my_tasks %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">
+                        <i class="fas fa-tasks"></i> {% trans "My Tasks" %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for task in my_tasks %}
+                    <div class="alert alert-info alert-card mb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>{{ task.title|truncatechars:40 }}</strong><br>
+                                <small class="text-muted">
+                                    {{ task.implementation_plan.change_control.change_number }}
+                                </small><br>
+                                <div class="mt-1">
+                                    <span class="badge 
+                                        {% if task.priority == 'high' %}bg-danger
+                                        {% elif task.priority == 'medium' %}bg-warning text-dark
+                                        {% else %}bg-success{% endif %}">
+                                        {{ task.get_priority_display }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                {% if task.is_overdue %}
+                                    <span class="badge bg-danger">{% trans "Overdue" %}</span>
+                                {% else %}
+                                    <small class="text-muted">
+                                        {% trans "Due" %}: {{ task.due_date|date:"M d" }}
+                                    </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="progress progress-mini mt-2">
+                            <div class="progress-bar bg-info" 
+                                 style="width: {{ task.progress_percentage }}%">
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <a href="{% url 'change_control:task_detail' task.id %}" 
+                               class="btn btn-sm btn-info">
+                                {% trans "View Task" %}
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Upcoming Implementations -->
+            {% if upcoming_implementations %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success">
+                        <i class="fas fa-calendar-check"></i> {% trans "Upcoming Implementations" %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for change in upcoming_implementations %}
+                    <div class="alert alert-success alert-card mb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>{{ change.change_number }}</strong><br>
+                                <small>{{ change.title|truncatechars:40 }}</small>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">
+                                    {{ change.target_implementation_date|date:"M d, Y" }}
+                                </small><br>
+                                <small class="text-success">
+                                    {% trans "In" %} {{ change.days_until_implementation }} {% trans "days" %}
+                                </small>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <a href="{% url 'change_control:detail' change.pk %}" 
+                               class="btn btn-sm btn-success">
+                                {% trans "View Details" %}
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quick Actions -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-bolt"></i> {% trans "Quick Actions" %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'change_control:create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> {% trans "New Change Request" %}
+                        </a>
+                        <a href="{% url 'change_control:my_changes' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-user"></i> {% trans "My Changes" %}
+                        </a>
+                        <a href="{% url 'change_control:statistics' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-chart-bar"></i> {% trans "Statistics" %}
+                        </a>
+                        <a href="{% url 'change_control:export_excel' %}" class="btn btn-outline-success">
+                            <i class="fas fa-file-excel"></i> {% trans "Export to Excel" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Status Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['{% trans "Submitted" %}', '{% trans "Approved" %}', '{% trans "In Progress" %}', '{% trans "Completed" %}'],
+            datasets: [{
+                data: [12, 8, 5, 15],
+                backgroundColor: ['#17a2b8', '#28a745', '#ffc107', '#6f42c1'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Trend Chart
+    const trendCtx = document.getElementById('trendChart').getContext('2d');
+    new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+                label: '{% trans "Changes Submitted" %}',
+                data: [12, 15, 8, 18, 22, 16],
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

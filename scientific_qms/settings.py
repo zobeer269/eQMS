@@ -30,6 +30,9 @@ INSTALLED_APPS = [
     'training',
     'suppliers',
     'equipment',
+    'deviations',
+    'capa',
+    'change_control',
     
     # مكتبات خارجية
     'crispy_forms',
